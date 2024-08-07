@@ -1,3 +1,8 @@
+"""
+VPG is an off-policy algorithm that collects multiple trajectories on an old policy and then does batch updates
+with -logprob(actions) * return(trajectory). Learning, always check that the variables you are recording and calculating off
+of are accurate and at the right timestep.
+"""
 import os
 import random
 import time
@@ -21,9 +26,9 @@ class Args:
     seed: int = 1
     cuda: bool = True
     track: bool = False
-    torch_deterministic: bool = False
+    torch_deterministic: bool = True
     wandb_project_name: str = "rl_gym"
-    epochs: int = 50
+    epochs: int = 100
     max_timesteps: int=5000
     lr: float = 1e-2
 
@@ -93,6 +98,7 @@ if __name__ == "__main__":
     policy_net = policy_net.to(device)
     # value_net = Value(train_env)
     optimizer = Adam(policy_net.parameters(), lr=args.lr)
+    best_return = 0
     for k in range(args.epochs):
         batch_obs = []
         batch_actions = []
@@ -111,7 +117,7 @@ if __name__ == "__main__":
             batch_obs.append(obs.copy())
 
             action, log_prob = policy_net.get_action(torch.as_tensor(obs, dtype=torch.float32).to(device))
-            obs, reward, done, _, _ = env.step(action)
+            obs, reward, done, _, _ = train_env.step(action)
         
             batch_actions.append(action)
             batch_logprobs.append(log_prob)
@@ -146,7 +152,16 @@ if __name__ == "__main__":
         
         print(f"epoch {k}: \t loss: {batch_loss} \t avg return {np.mean(batch_returns)} \t avg episode length {np.mean(batch_lens)}")
 
+    train_env.close()    
+    test_env = RecordVideo(env, RECORDING_DIR, name_prefix="test")
+
+    with torch.no_grad():
+        policy_net.eval()
+        done = False
+        while not done:
+            action, log_prob = policy_net.get_action(torch.as_tensor(obs, dtype=torch.float32).to(device))
+            obs, reward, done, _, _ = test_env.step(action)
+            test_env.render()
     
 
-
-        
+    test_env.close()
