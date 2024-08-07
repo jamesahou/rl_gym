@@ -78,7 +78,7 @@ def make_env(gym_id, seed, idx, capture_video, recording_dir):
         env.observation_space.seed(seed)
         return env
     return f
-
+    
 if __name__ == "__main__":
     args = tyro.cli(Args)
     run_name = f"Acrobot_PPO_{args.seed}_{int(time.time())}"
